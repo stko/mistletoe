@@ -1,0 +1,4 @@
+- address
+    - street
+    - city
+    - state
