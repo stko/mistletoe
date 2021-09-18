@@ -186,23 +186,75 @@ class MSONRenderer(BaseRenderer):
 			inner=list([self.render(child) for child in token.children])
 
 		self._suppress_ptag_stack.pop()
+		if len(inner)==1: # only one element? so no list
+			return inner[0]
+		else:
+			return  inner 
+
+	def eval_text_syntax(self, text):
+		text=text.strip()
+		key_pattern=re.compile(r'(\w+).*')
+		type_pattern=re.compile(r'.*\((\w+)\)')
+		value_pattern=re.compile(r'\w+\s*:(.+)(\(\s*\))*')
+
+		type_name=None
+		pattern_match= type_pattern.match(text)
+		if pattern_match:
+			type_name = pattern_match.group(1).strip()
+			print(pattern_match.groups())
+
+		pattern_match= key_pattern.match(text)
+		if not pattern_match:
+			return text, None, type_name
+		print(pattern_match.groups())
+		key_name = pattern_match.group(1).strip()
+		value_name=None
+		pattern_match= value_pattern.match(text)
+		if pattern_match:
+			value_name = pattern_match.group(1).strip()
+			print(pattern_match.groups())
+		return (key_name, value_name, type_name)
+			
+
+
+
+	def transformMSON(self, old_inner):
+		'''
+		this routine tries to transform the original just textual information into its different
+		object types, as been descripted in the MSON spec.
+
+		This is just a partly implementation 
+
+		'''
+
+		inner=[]
+		for old_in in old_inner:
+			if isinstance(old_in, str):
+				key, content, var_type =self.eval_text_syntax(old_in)
+				if content:
+					inner.append({key:content})
+				else:
+					inner.append(key)
+			else:
+				inner.append(old_in)
 		return inner
+
 
 	def render_list_item(self, token):
 		if len(token.children) == 0:
 			return []
 		inner = [self.render(child) for child in token.children]
-		inner_template = '\n{}\n'
-		if self._suppress_ptag_stack[-1]:
-			if token.children[0].__class__.__name__ == 'Paragraph':
-				inner_template = inner_template[1:]
-			if token.children[-1].__class__.__name__ == 'Paragraph':
-				inner_template = inner_template[:-1]
-		#return '<li>{}</li>'.format(inner_template.format(inner))
-		if len(inner)>1:
-			return inner
-		else:
+		inner=self.transformMSON(inner)
+		if len(inner)==1:
 			return inner[0]
+		if self._suppress_ptag_stack[-1]:
+			if token.children[0].__class__.__name__ == 'Paragraph' and len(inner)>1:
+				inner={inner[0]:inner[1]}
+			if token.children[-1].__class__.__name__ == 'Paragraph' and len(inner)>1:
+				inner={inner[1]:inner[0]}
+		return inner
+		#return '<li>{}</li>'.format(inner_template.format(inner))
+
 
 
 	def render_table(self, token):
@@ -255,7 +307,10 @@ class MSONRenderer(BaseRenderer):
 	def render_document(self, token):
 		self.footnotes.update(token.footnotes)
 		inner = list([self.render(child) for child in token.children])
-		return  inner 
+		if len(inner)==1: # only one element? so no list
+			return inner[0]
+		else:
+			return  inner 
 
 	@staticmethod
 	def escape_mson(raw):
@@ -279,9 +334,9 @@ class MSONRenderer(BaseRenderer):
 			token: a branch node who has children attribute.
 		"""
 		rendered=list(map(self.render, token.children))
-		if len(rendered)>1:
-			return rendered
-		else:
+		if len(rendered)==1:
 			return rendered[0]
+		else:
+			return rendered
 		
 		return list(map(self.render, token.children))

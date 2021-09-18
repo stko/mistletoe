@@ -1,4 +1,6 @@
-- address
+- address (array)
     - street
+        - meiner
     - city
     - state
+    - town: brake
