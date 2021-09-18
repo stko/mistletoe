@@ -24,10 +24,11 @@ class MSONRenderer(BaseRenderer):
 
 	See mistletoe.base_renderer module for more info.
 	"""
+
 	def __init__(self, *extras):
 		"""
 		Args:
-			extras (list): allows subclasses to add even more custom tokens.
+				extras (list): allows subclasses to add even more custom tokens.
 		"""
 		self._suppress_ptag_stack = [False]
 		super().__init__(*chain((HTMLBlock, HTMLSpan), extras))
@@ -40,8 +41,9 @@ class MSONRenderer(BaseRenderer):
 		html._charref = _charref
 
 		# here the magic takes place: this is the nested list we fill
-		self.mson_object=[] # the root element is an array
-		self.actual_nested_obj=self.mson_object # point to where the actual parsed node should be added into
+		self.mson_object = []  # the root element is an array
+		# point to where the actual parsed node should be added into
+		self.actual_nested_obj = self.mson_object
 
 	def __exit__(self, *args):
 		super().__exit__(*args)
@@ -50,52 +52,52 @@ class MSONRenderer(BaseRenderer):
 	def render_to_plain(self, token):
 		if hasattr(token, 'children'):
 			inner = [self.render_to_plain(child) for child in token.children]
-			#return ''.join(inner)
+			# return ''.join(inner)
 			return inner
 		return self.escape_mson(token.content)
 
 	def render_strong(self, token):
 		# no text formating yet
 		#template = '<strong>{}</strong>'
-		#return template.format(self.render_inner(token))
+		# return template.format(self.render_inner(token))
 		return self.render_inner(token)
 
 	def render_emphasis(self, token):
 		# no text formating yet
 		#template = '<em>{}</em>'
-		#return template.format(self.render_inner(token))
+		# return template.format(self.render_inner(token))
 		return self.render_inner(token)
 
 	def render_inline_code(self, token):
 		#template = '<code>{}</code>'
 		#inner = html.escape(token.children[0].content)
-		#return template.format(inner)
+		# return template.format(inner)
 		inner = token.children[0].content
 		return inner
 
 	def render_strikethrough(self, token):
 		#template = '<del>{}</del>'
-		#return template.format(self.render_inner(token))
+		# return template.format(self.render_inner(token))
 
 		# strikethrough data is not used
 		return None
 
 	def add_properties(self, list, key, value):
-		if key not in list: # key is not used yet
-			list[key]=value
-		if not type(list[key]) == 'list': # no list type? then we have to make one out it to append our new value to it
-			list[key]=[list[key]]
-		#add the new value
+		if key not in list:  # key is not used yet
+			list[key] = value
+		# no list type? then we have to make one out it to append our new value to it
+		if not type(list[key]) == 'list':
+			list[key] = [list[key]]
+		# add the new value
 		list[key].append(value)
-		
 
 	def render_image(self, token):
-		image= {'src':token.src}
+		image = {'src': token.src}
 		if token.title:
-			image['title']=token.title
+			image['title'] = token.title
 		else:
-			image['title']=''
-		self.add_properties(self.actual_nested_obj,'img',image)
+			image['title'] = ''
+		self.add_properties(self.actual_nested_obj, 'img', image)
 		return image
 
 		template = '<img src="{}" alt="{}"{} />'
@@ -121,7 +123,7 @@ class MSONRenderer(BaseRenderer):
 	def render_auto_link(self, token):
 		# just return the text of a link
 		return self.render_inner(token)
-		
+
 		template = '<a href="{target}">{inner}</a>'
 		if token.mailto:
 			target = 'mailto:{}'.format(token.target)
@@ -142,8 +144,8 @@ class MSONRenderer(BaseRenderer):
 
 	def render_heading(self, token):
 		return {
-			'level':token.level,
-			'data':self.render_inner(token)
+			'level': token.level,
+			'data': self.render_inner(token)
 		}
 		template = '<h{level}>{inner}</h{level}>'
 		inner = self.render_inner(token)
@@ -166,57 +168,78 @@ class MSONRenderer(BaseRenderer):
 	def render_block_code(self, token):
 		template = '<pre><code{attr}>{inner}</code></pre>'
 		if token.language:
-			attr = ' class="{}"'.format('language-{}'.format(self.escape_mson(token.language)))
+			attr = ' class="{}"'.format(
+				'language-{}'.format(self.escape_mson(token.language)))
 		else:
 			attr = ''
 		inner = html.escape(token.children[0].content)
 		return template.format(attr=attr, inner=inner)
 
 	def render_list(self, token):
-		start=None
+		start = None
 		template = '<{tag}{attr}>\n{inner}\n</{tag}>'
 		if token.start is not None:
 			start = int(token.start) if token.start != 1 else 0
 		self._suppress_ptag_stack.append(not token.loose)
-		inner=[]
-		if start !=None:
+		inner_array = []
+		inner_hash = {}
+		if start != None:
 			for child in token.children:
-				inner.insert(start,self.render(child))
+				inner_array.insert(start, self.render(child))
 		else:
-			inner=list([self.render(child) for child in token.children])
+			#inner = list([self.render(child) for child in token.children])
+			inner_hash={}
+			for child in token.children:
+				child_data=self.render(child)
+				if isinstance(child_data,dict):
+					for key, val in child_data.items():
+						inner_hash[key]=val
+				else:
+					inner_array.append(child_data)
 
 		self._suppress_ptag_stack.pop()
-		if len(inner)==1: # only one element? so no list
-			return inner[0]
+		if inner_array and inner_hash:
+			'''
+			# we transfer the hash data into the array, somehow...
+			for key, val in inner_hash.items():
+					inner_array.append({key:val})
+			return inner_array
+			'''
+			# we transfer the array data into the hash, somehow...
+			for  val in inner_array:
+					inner_hash[val]=True
+			return inner_hash
+			
+		if len(inner_array) == 1:  # only one element? so no list
+			return inner_array[0]
 		else:
-			return  inner 
+			if inner_hash:
+				return inner_hash
+			else:
+				return inner_array
 
 	def eval_text_syntax(self, text):
-		text=text.strip()
-		key_pattern=re.compile(r'(\w+).*')
-		type_pattern=re.compile(r'.*\((\w+)\)')
-		value_pattern=re.compile(r'\w+\s*:(.+)(\(\s*\))*')
+		text = text.strip()
+		key_pattern = re.compile(r'(\+?\w+).*')
+		type_pattern = re.compile(r'.*\((.*)\)')
+		value_pattern = re.compile(r'\+?\w+\s*:(.+)(\(\s*\))*')
 
-		type_name=None
-		pattern_match= type_pattern.match(text)
+		type_name = None
+		pattern_match = type_pattern.match(text)
 		if pattern_match:
 			type_name = pattern_match.group(1).strip()
-			print(pattern_match.groups())
 
-		pattern_match= key_pattern.match(text)
+		pattern_match = key_pattern.match(text)
 		if not pattern_match:
 			return text, None, type_name
-		print(pattern_match.groups())
 		key_name = pattern_match.group(1).strip()
-		value_name=None
-		pattern_match= value_pattern.match(text)
+
+		value_name = None
+		pattern_match = value_pattern.match(text)
 		if pattern_match:
 			value_name = pattern_match.group(1).strip()
-			print(pattern_match.groups())
+
 		return (key_name, value_name, type_name)
-			
-
-
 
 	def transformMSON(self, old_inner):
 		'''
@@ -227,70 +250,85 @@ class MSONRenderer(BaseRenderer):
 
 		'''
 
-		inner=[]
+		inner = []
 		for old_in in old_inner:
 			if isinstance(old_in, str):
-				key, content, var_type =self.eval_text_syntax(old_in)
+				key, content, var_type = self.eval_text_syntax(old_in)
 				if content:
-					inner.append({key:content})
+					inner.append({key: content})
 				else:
 					inner.append(key)
 			else:
 				inner.append(old_in)
 		return inner
 
-
 	def render_list_item(self, token):
 		if len(token.children) == 0:
 			return []
 		inner = [self.render(child) for child in token.children]
-		inner=self.transformMSON(inner)
-		if len(inner)==1:
+		inner = self.transformMSON(inner)
+		if len(inner) == 1:
 			return inner[0]
-		if self._suppress_ptag_stack[-1]:
-			if token.children[0].__class__.__name__ == 'Paragraph' and len(inner)>1:
-				inner={inner[0]:inner[1]}
-			if token.children[-1].__class__.__name__ == 'Paragraph' and len(inner)>1:
-				inner={inner[1]:inner[0]}
+		if self._suppress_ptag_stack[-1] or True:
+			if token.children[0].__class__.__name__ == 'Paragraph' and len(inner) > 1:
+				inner = {inner[0]: inner[1]}
+			if token.children[-1].__class__.__name__ == 'Paragraph' and len(inner) > 1:
+				inner = {inner[1]: inner[0]}
+			if token.children[0].__class__.__name__ == 'List' and len(inner) > 1:
+				inner = {inner[0]: inner[1]}
+			if token.children[-1].__class__.__name__ == 'List' and len(inner) > 1:
+				inner = {inner[1]: inner[0]}
 		return inner
-		#return '<li>{}</li>'.format(inner_template.format(inner))
-
-
+		# return '<li>{}</li>'.format(inner_template.format(inner))
 
 	def render_table(self, token):
 		# This is actually gross and I wonder if there's a better way to do it.
 		#
 		# The primary difficulty seems to be passing down alignment options to
 		# reach individual cells.
-		template = '<table>\n{inner}</table>'
+
 		if hasattr(token, 'header'):
-			head_template = '<thead>\n{inner}</thead>\n'
-			head_inner = self.render_table_row(token.header, is_header=True)
-			head_rendered = head_template.format(inner=head_inner)
-		else: head_rendered = ''
-		body_template = '<tbody>\n{inner}</tbody>\n'
+
+			head_inner = [self.render_table_row(token.header, is_header=True)]
+
+		else:
+			head_inner = []
+
 		body_inner = self.render_inner(token)
-		body_rendered = body_template.format(inner=body_inner)
-		return template.format(inner=head_rendered+body_rendered)
+		all_inner_values = head_inner + body_inner
+
+		# and now, depending if cell 0,0 has an value or not, we either create a array or a named hash
+		# of object, where the property names are defined by the table headers
+		if all_inner_values:  # if table is not totally empty
+			if all_inner_values[0]:  # something in first row?
+				if all_inner_values[0][0]:  # does cell 0,0 does have a value
+					# we create an array of anonymous objects
+					all_inner = []
+					for row in range(1, len(all_inner_values)):
+						obj = {}
+						for col in range(len(all_inner_values[0])):
+							obj[all_inner_values[0][col]
+								] = all_inner_values[row][col]
+						all_inner.append(obj)
+				else:
+					# we create a hashmap of named objects
+					all_inner = {}
+					for row in range(1, len(all_inner_values)):
+						obj = {}
+						for col in range(1, len(all_inner_values[0])):
+							obj[all_inner_values[0][col]
+								] = all_inner_values[row][col]
+						all_inner[all_inner_values[row][0]] = obj
+		return all_inner
 
 	def render_table_row(self, token, is_header=False):
-		template = '<tr>\n{inner}</tr>\n'
-		inner = ''.join([self.render_table_cell(child, is_header)
-						 for child in token.children])
-		return template.format(inner=inner)
+		inner = [self.render_table_cell(child, is_header)
+				 for child in token.children]
+		return inner
 
 	def render_table_cell(self, token, in_header=False):
-		template = '<{tag}{attr}>{inner}</{tag}>\n'
-		tag = 'th' if in_header else 'td'
-		if token.align is None:
-			align = 'left'
-		elif token.align == 0:
-			align = 'center'
-		elif token.align == 1:
-			align = 'right'
-		attr = ' align="{}"'.format(align)
 		inner = self.render_inner(token)
-		return template.format(tag=tag, attr=attr, inner=inner)
+		return inner
 
 	@staticmethod
 	def render_thematic_break(token):
@@ -307,10 +345,10 @@ class MSONRenderer(BaseRenderer):
 	def render_document(self, token):
 		self.footnotes.update(token.footnotes)
 		inner = list([self.render(child) for child in token.children])
-		if len(inner)==1: # only one element? so no list
+		if len(inner) == 1:  # only one element? so no list
 			return inner[0]
 		else:
-			return  inner 
+			return inner
 
 	@staticmethod
 	def escape_mson(raw):
@@ -322,21 +360,21 @@ class MSONRenderer(BaseRenderer):
 		Escape urls to prevent code injection craziness. (Hopefully.)
 		"""
 		return html.escape(quote(html.unescape(raw), safe='/#:()*?=%@+,&'))
- 
+
 	def render_inner(self, token):
 		"""
 		Recursively renders child tokens.
-		
+
 		Returns a nested object
 
 
 		Arguments:
-			token: a branch node who has children attribute.
+				token: a branch node who has children attribute.
 		"""
-		rendered=list(map(self.render, token.children))
-		if len(rendered)==1:
+		rendered = list(map(self.render, token.children))
+		if len(rendered) == 1:
 			return rendered[0]
 		else:
 			return rendered
-		
+
 		return list(map(self.render, token.children))
