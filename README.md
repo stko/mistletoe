@@ -1,3 +1,15 @@
+This is a fork of mistletoe to implement the
+
+MSON renderer for mistletoe
+
+which extracts objects out of Markdown syntax. For details see
+
+Markdown Syntax for Object Notation (MSON) is a plain-text syntax for the description and validation of data structures.
+https://github.com/apiaryio/mson/blob/master/MSON%20Specification.md
+https://github.com/apiaryio/mson
+
+The implementation of MSON is far away from covering the whole MSON spec, but for my purposes it does the job :-)
+
 <h1>mistletoe<img src='https://cdn.rawgit.com/miyuchina/mistletoe/master/resources/logo.svg' align='right' width='128' height='128'></h1>
 
 [![Build Status][build-badge]][travis]
