@@ -1,5 +1,3 @@
-# Copyright 2018 Tile, Inc.  All Rights Reserved.
-#
 # The MIT License
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -25,20 +23,20 @@ from test.base_test import BaseRendererTest
 from mistletoe.block_token import Document
 from mistletoe.span_token import tokenize_inner
 from mistletoe import Document
-from contrib.jira_renderer import JIRARenderer
+from contrib.xwiki20_renderer import XWiki20Renderer
 import random
 import string
 
 filesBasedTest = BaseRendererTest.filesBasedTest
 
-class TestJIRARenderer(BaseRendererTest):
+class TestXWiki20Renderer(BaseRendererTest):
 
     def setUp(self):
         super().setUp()
-        self.renderer = JIRARenderer()
+        self.renderer = XWiki20Renderer()
         self.renderer.__enter__()
         self.addCleanup(self.renderer.__exit__, None, None, None)
-        self.sampleOutputExtension = 'jira'
+        self.sampleOutputExtension = 'xwiki20'
 
     def genRandomString(self, n, hasWhitespace=False):
         source = string.ascii_letters + string.digits
@@ -55,156 +53,89 @@ class TestJIRARenderer(BaseRendererTest):
         actual = self.renderer.render(token)
         self.assertEqual(expected, actual)
 
-    def test_escape_simple(self):
-        self.textFormatTest('---fancy text---', '\\-\\-\\-fancy text\\-\\-\\-')
-        
-    def test_escape_single_chars(self):
-        self.textFormatTest('**fancy \\*@\\* text**', '*fancy \\*@\\* text*')
-        
-    def test_escape_none_when_whitespaces(self):
-        self.textFormatTest('obj = {{ a: (b * c) + d }}', 'obj = {{ a: (b * c) + d }}')
-        
-    def test_escape_in_inline_code(self):
-        # Note: Jira puts inline code into "{{...}}" as seen in this test.
-        self.textFormatTest('**code: `a = b + c;// [1]`**',
-                '*code: {{{{a = b + c;// \\[1\\]}}}}*')
+    def test_escaping(self):
+        self.textFormatTest('**code: `a = 1;// comment`, plain text URL: http://example.com**',
+                '**code: {{{{code}}}}a = 1;// comment{{{{/code}}}}, plain text URL: http:~//example.com**')
 
-    def test_escape_link(self):
-        # Note: There seems to be no way of how to escape plain text URL in Jira.
-        self.textFormatTest('http://www.example.com', 'http://www.example.com')
-        
     def test_render_strong(self):
-        self.textFormatTest('**a{}**', '*a{}*')
+        self.textFormatTest('**a{}**', '**a{}**')
 
     def test_render_emphasis(self):
-        self.textFormatTest('*a{}*', '_a{}_')
+        self.textFormatTest('*a{}*', '//a{}//')
         
     def test_render_inline_code(self):
-        self.textFormatTest('`a{}b`', '{{{{a{}b}}}}')
+        self.textFormatTest('`a{}b`', '{{{{code}}}}a{}b{{{{/code}}}}')
 
     def test_render_strikethrough(self):
-        self.textFormatTest('~~{}~~', '-{}-')
+        self.textFormatTest('~~{}~~', '--{}--')
 
     def test_render_image(self):
         token = next(iter(tokenize_inner('![image](foo.jpg)')))
-        expected = '!foo.jpg!'
+        expected = '[[image:foo.jpg]]'
         actual = self.renderer.render(token)
         self.assertEqual(expected, actual)
     
-    def test_render_footnote_image(self):
-        # token = next(tokenize_inner('![image]\n\n[image]: foo.jpg'))
-        # expected = '!foo.jpg!'
-        # actual = self.renderer.render(token)
-        # self.assertEqual(expected, actual)
-        pass
-
     def test_render_link(self):
         url = 'http://{0}.{1}.{2}'.format(self.genRandomString(5), self.genRandomString(5), self.genRandomString(3))
         body = self.genRandomString(80, True)
         token = next(iter(tokenize_inner('[{body}]({url})'.format(url=url, body=body))))
-        expected = '[{body}|{url}]'.format(url=url, body=body)
+        expected = '[[{body}>>{url}]]'.format(url=url, body=body)
         actual = self.renderer.render(token)
         self.assertEqual(expected, actual)
     
-    def test_render_footnote_link(self):
-        pass
-
     def test_render_auto_link(self):
         url = 'http://{0}.{1}.{2}'.format(self.genRandomString(5), self.genRandomString(5), self.genRandomString(3))
         token = next(iter(tokenize_inner('<{url}>'.format(url=url))))
-        expected = '[{url}]'.format(url=url)
+        expected = '[[{url}]]'.format(url=url)
         actual = self.renderer.render(token)
         self.assertEqual(expected, actual)
-        
-    def test_render_escape_sequence(self):
-        pass
 
     def test_render_html_span(self):
-        pass
-
-    def test_render_heading(self):
-        pass
-        
-    def test_render_quote(self):
-        pass
-
-    def test_render_paragraph(self):
-        pass
-
-    def test_render_block_code(self):
-        markdown = """\
-```java
-public static void main(String[] args) {
-    // a = 1 * 2;
-}
-```
-"""
-        expected = """\
-{code:java}
-public static void main(String[] args) {
-    // a = 1 * 2;
-}
-{code}
-
-"""
+        markdown = 'text styles: <i>italic</i>, <b>bold</b>'
+        # See fixme at the `render_html_span` method...
+        # expected = 'text styles: {{html wiki="true"}}<i>italic</i>{{/html}}, {{html wiki="true"}}<b>bold</b>{{/html}}\n\n'
+        expected = 'text styles: <i>italic</i>, <b>bold</b>\n\n'
         self.markdownResultTest(markdown, expected)
-
-    def test_render_list(self):
-        pass
-
-    def test_render_list_item(self):
-        pass
-
-    def test_render_inner(self):
-        pass
-
-    def test_render_table(self):
-        pass
-
-    def test_render_table_row(self):
-        pass
-
-    def test_render_table_cell(self):
-        pass
-
-    def test_render_thematic_break(self):
-        pass
-
+    
     def test_render_html_block(self):
-        pass
-
-    def test_render_document(self):
-        pass
-
-    def test_table_header(self):
+        markdown = 'paragraph\n\n<pre>some <i>cool</i> code</pre>'
+        expected = 'paragraph\n\n{{html wiki="true"}}\n<pre>some <i>cool</i> code</pre>\n{{/html}}\n\n'
+        self.markdownResultTest(markdown, expected)
+    
+    def test_render_xwiki_macros_simple(self):
         markdown = """\
-| header row   |
-|--------------|
-| first cell   |
+{{warning}}
+Use this feature with *caution*. See {{Wikipedia article="SomeArticle"/}}. {{test}}Another inline macro{{/test}}.
+{{/warning}}
 """
+        # Note: There is a trailing ' ' at the end of the second line. It will be a bit complicated to get rid of it.
         expected = """\
-||header row||
-|first cell|
+{{warning}}
+Use this feature with //caution//. See {{Wikipedia article="SomeArticle"/}}. {{test}}Another inline macro{{/test}}. \n\
+{{/warning}}
 
 """
         self.markdownResultTest(markdown, expected)
-
-    def test_table_empty_cell(self):
-        """
-        Empty cells need to have a space in them, see <https://jira.atlassian.com/browse/JRASERVER-70048>.
-        """
+    
+    def test_render_xwiki_macros_in_list(self):
         markdown = """\
-| A | B | C |
-|-----------|
-| 1 |   | 3 |
+* list item
+
+  {{warning}}
+  Use this feature with *caution*. See {{Wikipedia article="SomeArticle"/}}. {{test}}Another inline macro{{/test}}.
+  {{/warning}}
 """
+        # Note: There is a trailing ' ' at the end of the second line. It will be a bit complicated to get rid of it.
         expected = """\
-||A||B||C||
-|1| |3|
+* list item(((
+{{warning}}
+Use this feature with //caution//. See {{Wikipedia article="SomeArticle"/}}. {{test}}Another inline macro{{/test}}. \n\
+{{/warning}}
+)))
 
 """
         self.markdownResultTest(markdown, expected)
-
+    
     @filesBasedTest
     def test_render__basic_blocks(self):
         pass

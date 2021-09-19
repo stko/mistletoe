@@ -66,6 +66,12 @@ cd mistletoe
 pip3 install -e .
 ```
 
+This installs mistletoe in "editable" mode (because of the `-e` option).
+That means that any changes made to the source code will get visible
+immediately - that's because Python only makes a link to the specified
+directory (`.`) instead of copying the files to the standard packages
+folder.
+
 See the [contributing][contributing] doc for how to contribute to mistletoe.
 
 Usage
@@ -128,6 +134,17 @@ class after a `-r` or `--renderer` flag:
 
 ```sh
 mistletoe foo.md --renderer custom_renderer.CustomRenderer
+```
+
+The renderers inside the `contrib` directory are not currently installed
+as a regular Python module, neither as part of the `mistletoe` module.
+So if you want to use a renderer from the `contrib` directory, you either
+have to add that directory to Python's [PYTHONPATH][pythonpath]
+and reference the renderer as in the example above, or have the directory
+as part of the full path to the renderer:
+
+```sh
+mistletoe foo.md --renderer contrib.custom_renderer.CustomRenderer
 ```
 
 Running `mistletoe` without specifying a file will land you in interactive
@@ -459,3 +476,4 @@ Copyright & License
 [icon]: https://www.freepik.com
 [cc-by]: https://creativecommons.org/licenses/by/3.0/us/
 [license]: LICENSE
+[pythonpath]: https://stackoverflow.com/questions/16107526/how-to-flexibly-change-pythonpath
