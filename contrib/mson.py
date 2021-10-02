@@ -193,7 +193,10 @@ class MSONRenderer(BaseRenderer):
 				child_data=self.render(child)
 				if isinstance(child_data,dict):
 					for key, val in child_data.items():
-						inner_hash[key]=val
+						if key=='item':
+							inner_array.append(val)
+						else:
+							inner_hash[key]=val
 				else:
 					inner_array.append(child_data)
 
@@ -207,7 +210,14 @@ class MSONRenderer(BaseRenderer):
 			'''
 			# we transfer the array data into the hash, somehow...
 			for  val in inner_array:
-					inner_hash[val]=True
+				# in case of anonymous arrays, the value is also a list,
+				# which should be a dict instead.
+				# to fix this, we use the first item as a key 
+				# and make a key:val out of it..
+				if isinstance(val,list):
+					inner_hash[val[0]]=val[1:]
+					continue
+				inner_hash[val]=True
 			return inner_hash
 			
 		if len(inner_array) == 1:  # only one element? so no list
