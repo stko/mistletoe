@@ -202,7 +202,6 @@ class MSONRenderer(BaseRenderer):
 
 		self._suppress_ptag_stack.pop()
 		if inner_array and inner_hash:
-			'''
 			# we transfer the hash data into the array, somehow...
 			for key, val in inner_hash.items():
 					inner_array.append({key:val})
@@ -219,6 +218,7 @@ class MSONRenderer(BaseRenderer):
 					continue
 				inner_hash[val]=True
 			return inner_hash
+			'''
 			
 		if len(inner_array) == 1:  # only one element? so no list
 			return inner_array[0]
