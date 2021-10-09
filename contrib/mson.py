@@ -194,6 +194,7 @@ class MSONRenderer(BaseRenderer):
 		self._suppress_ptag_stack.append(not token.loose)
 		inner_array = []
 		inner_hash = {}
+		we_found_an_item = False
 		if start != None:
 			for child in token.children:
 				inner_array.insert(start, self.render(child))
@@ -206,6 +207,7 @@ class MSONRenderer(BaseRenderer):
 					for key, val in child_data.items():
 						if key == 'item':
 							inner_array.append(val)
+							we_found_an_item = True
 						else:
 							if key in inner_hash:
 								self.inject_properties(val,inner_hash[key])
@@ -234,7 +236,8 @@ class MSONRenderer(BaseRenderer):
 			return inner_hash
 			'''
 
-		if len(inner_array) == 1:  # only one element? so no list
+		if len(inner_array) == 1 and not we_found_an_item: 
+			# only one element? so no list - but if it is an 'item' element, then it needs to be a list
 			return inner_array[0]
 		else:
 			if inner_hash:
@@ -407,12 +410,18 @@ class MSONRenderer(BaseRenderer):
 		'''
 		tries to recursively copy all properties from source into target
 
-		whereever senseful and possible, it combines single scalars into combined lists
+		whereever senseful and possible, it combines single scalars into combined lists,
+		if the both scalars have different values. If the both values are equal, then just one scalar value is kept
 
 		exception: when the target value is a scalar and starts with #, then only the target value is kept
 		If the value is only #, then the property will be removed
 
 		'''
+
+		# in case source and target are lists
+		if isinstance(source,list) and isinstance(target,list):
+			target.extend(source)
+			return
 
 		#print('inject',source['name'],'->', target['name'])
 		# we go through all source properties
@@ -436,7 +445,8 @@ class MSONRenderer(BaseRenderer):
 				# ok, let's go through all combinations..
 				if source_is_scalar:
 					if target_is_scalar:
-						target[source_key] = [source_value, target_value]
+						if source_value != target_value: # this avoids to have the same skalar value multiple times
+							target[source_key] = [source_value, target_value]
 					if target_is_dict:
 						target_value.append(source_value)
 					if target_is_list:
