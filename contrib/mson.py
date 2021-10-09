@@ -7,6 +7,8 @@ https://github.com/apiaryio/mson
 
 import re
 import sys
+import copy
+import collections
 from itertools import chain
 from urllib.parse import quote
 from mistletoe.block_token import HTMLBlock
@@ -28,7 +30,7 @@ class MSONRenderer(BaseRenderer):
 	def __init__(self, *extras):
 		"""
 		Args:
-				extras (list): allows subclasses to add even more custom tokens.
+						extras (list): allows subclasses to add even more custom tokens.
 		"""
 		self._suppress_ptag_stack = [False]
 		super().__init__(*chain((HTMLBlock, HTMLSpan), extras))
@@ -160,7 +162,16 @@ class MSONRenderer(BaseRenderer):
 		return '\n'.join(elements)
 
 	def render_paragraph(self, token):
-		return self.render_inner(token)
+		rendered = self.render_inner(token)
+		if isinstance(rendered, list):
+			key, value, type_of_val = self.eval_text_syntax(rendered[0])
+			if key:
+				if value:
+					return {key: [value] + rendered[1:]}
+				else:
+					return {key: rendered[1:]}
+
+		return rendered
 		if self._suppress_ptag_stack[-1]:
 			return '{}'.format(self.render_inner(token))
 		return '<p>{}</p>'.format(self.render_inner(token))
@@ -188,15 +199,18 @@ class MSONRenderer(BaseRenderer):
 				inner_array.insert(start, self.render(child))
 		else:
 			#inner = list([self.render(child) for child in token.children])
-			inner_hash={}
+			inner_hash = {}
 			for child in token.children:
-				child_data=self.render(child)
-				if isinstance(child_data,dict):
+				child_data = self.render(child)
+				if isinstance(child_data, dict):
 					for key, val in child_data.items():
-						if key=='item':
+						if key == 'item':
 							inner_array.append(val)
 						else:
-							inner_hash[key]=val
+							if key in inner_hash:
+								self.inject_properties(val,inner_hash[key])
+							else:
+								inner_hash[key] = val
 				else:
 					inner_array.append(child_data)
 
@@ -204,7 +218,7 @@ class MSONRenderer(BaseRenderer):
 		if inner_array and inner_hash:
 			# we transfer the hash data into the array, somehow...
 			for key, val in inner_hash.items():
-					inner_array.append({key:val})
+				inner_array.append({key: val})
 			return inner_array
 			'''
 			# we transfer the array data into the hash, somehow...
@@ -219,7 +233,7 @@ class MSONRenderer(BaseRenderer):
 				inner_hash[val]=True
 			return inner_hash
 			'''
-			
+
 		if len(inner_array) == 1:  # only one element? so no list
 			return inner_array[0]
 		else:
@@ -230,9 +244,9 @@ class MSONRenderer(BaseRenderer):
 
 	def eval_text_syntax(self, text):
 		text = text.strip()
-		key_pattern = re.compile(r'(\+?\w+).*')
-		type_pattern = re.compile(r'.*\((.*)\)')
-		value_pattern = re.compile(r'\+?\w+\s*:(.+)(\(\s*\))*')
+		key_pattern = re.compile(r'^(\w+).*')
+		type_pattern = re.compile(r'.*\((.*)\)$')
+		value_pattern = re.compile(r'^\w+\s*:(.+)(\(.*\))*$')
 
 		type_name = None
 		pattern_match = type_pattern.match(text)
@@ -379,7 +393,7 @@ class MSONRenderer(BaseRenderer):
 
 
 		Arguments:
-				token: a branch node who has children attribute.
+						token: a branch node who has children attribute.
 		"""
 		rendered = list(map(self.render, token.children))
 		if len(rendered) == 1:
@@ -388,3 +402,72 @@ class MSONRenderer(BaseRenderer):
 			return rendered
 
 		return list(map(self.render, token.children))
+
+	def inject_properties(self, source, target, source_file_path=None, target_file_path=None):
+		'''
+		tries to recursively copy all properties from source into target
+
+		whereever senseful and possible, it combines single scalars into combined lists
+
+		exception: when the target value is a scalar and starts with #, then only the target value is kept
+		If the value is only #, then the property will be removed
+
+		'''
+
+		#print('inject',source['name'],'->', target['name'])
+		# we go through all source properties
+		for source_key, source_value in source.items():
+			if str(source_key).lower() == 'name':  # don't touch the objects name :-)
+				continue
+			if not source_key in target:  # that's easy: we only need to copy source to target
+				target[source_key] = copy.deepcopy(source_value)
+			else:  # not easy: we need to apply different strategies depending on the value types
+				target_value = target[source_key]
+				if isinstance(target_value, str) and target_value[:1] == '#':
+					# the '#' surpresses the source copy operation
+					continue
+				source_is_dict = isinstance(source_value, collections.Mapping)
+				source_is_list = isinstance(source_value, list)
+				source_is_scalar = not (source_is_dict or source_is_list)
+				target_is_dict = isinstance(target_value, collections.Mapping)
+				target_is_list = isinstance(target_value, list)
+				target_is_scalar = not (target_is_dict or target_is_list)
+
+				# ok, let's go through all combinations..
+				if source_is_scalar:
+					if target_is_scalar:
+						target[source_key] = [source_value, target_value]
+					if target_is_dict:
+						target_value.append(source_value)
+					if target_is_list:
+						# make a boolean flag out of it..
+						target_value[source_value] = True
+				if source_is_dict:
+					if target_is_scalar:
+						target[source_key] = copy.deepcopy(source_value)
+						# make a boolean flag out of it..
+						target[source_key][target_value] = True
+					if target_is_dict:
+						self.inject_properties(
+							source_value, target_value, source_file_path, target_file_path)
+					if target_is_list:
+						if source_file_path and target_file_path:
+							print('Error: Can\'t join property {0} from {1} into {2} :different data type hash -> list'.format(
+								source_key, source_file_path, target_file_path))
+						else:
+							print(
+								'Error: Can\'t join property {0} :different data type hash -> list'.format(source_key))
+				if source_is_list:
+					if target_is_scalar:
+						target[source_key] = copy.deepcopy(source_value)
+						# make a common list out of it..
+						target[source_key].append(target_value)
+					if target_is_dict:
+						if source_file_path and target_file_path:
+							print('Error: Can\'t join property {0} from {1} into {2} :different data type list -> hash'.format(
+								source_key, source_file_path, target_file_path))
+						else:
+							print(
+								'Error: Can\'t join property {0} :different data type list -> hash'.format(source_key))
+					if target_is_list:
+						target_value.extend(copy.deepcopy(source_value))
