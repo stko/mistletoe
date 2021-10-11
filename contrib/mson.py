@@ -422,7 +422,13 @@ class MSONRenderer(BaseRenderer):
 		if isinstance(source,list) and isinstance(target,list):
 			target.extend(source)
 			return
+		if isinstance(source, (str,int, float)) and isinstance(target,(str,int, float)):
+			target=[source, target]
+			return
 
+		if isinstance(source, (str,int, float)) and isinstance(target,list):
+			target.append(source)
+			return
 		#print('inject',source['name'],'->', target['name'])
 		# we go through all source properties
 		for source_key, source_value in source.items():
