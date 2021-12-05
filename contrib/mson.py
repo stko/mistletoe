@@ -249,7 +249,7 @@ class MSONRenderer(BaseRenderer):
 		text = text.strip()
 		key_pattern = re.compile(r'^(\w+).*')
 		type_pattern = re.compile(r'.*\((.*)\)$')
-		value_pattern = re.compile(r'^\w+\s*:(.+)(\(.*\))*$')
+		value_pattern = re.compile(r'^-\s*\w+\s*:(.+)(\(.*\))*$')
 
 		type_name = None
 		pattern_match = type_pattern.match(text)
