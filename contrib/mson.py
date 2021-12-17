@@ -154,12 +154,14 @@ class MSONRenderer(BaseRenderer):
 		return template.format(level=token.level, inner=inner)
 
 	def render_quote(self, token):
-		elements = ['<blockquote>']
+		#elements = ['<blockquote>']
+		elements = []
 		self._suppress_ptag_stack.append(False)
 		elements.extend([self.render(child) for child in token.children])
 		self._suppress_ptag_stack.pop()
-		elements.append('</blockquote>')
-		return '\n'.join(elements)
+		#elements.append('</blockquote>')
+		#return '\n'.join(elements)
+		return elements
 
 	def render_paragraph(self, token):
 		rendered = self.render_inner(token)
@@ -249,7 +251,7 @@ class MSONRenderer(BaseRenderer):
 		text = text.strip()
 		key_pattern = re.compile(r'^(\w+).*')
 		type_pattern = re.compile(r'.*\((.*)\)$')
-		value_pattern = re.compile(r'^-\s*\w+\s*:(.+)(\(.*\))*$')
+		value_pattern = re.compile(r'^\s*\w+\s*:(.+)(\(.*\))*$')
 
 		type_name = None
 		pattern_match = type_pattern.match(text)
@@ -298,13 +300,17 @@ class MSONRenderer(BaseRenderer):
 			return inner[0]
 		if self._suppress_ptag_stack[-1] or True:
 			if token.children[0].__class__.__name__ == 'Paragraph' and len(inner) > 1:
-				inner = {inner[0]: inner[1]}
+				if isinstance(inner[0],  collections.Hashable):
+					inner = {inner[0]: inner[1]}
 			if token.children[-1].__class__.__name__ == 'Paragraph' and len(inner) > 1:
-				inner = {inner[1]: inner[0]}
+				if isinstance(inner[0],  collections.Hashable):
+					inner = {inner[1]: inner[0]}
 			if token.children[0].__class__.__name__ == 'List' and len(inner) > 1:
-				inner = {inner[0]: inner[1]}
+				if isinstance(inner[0],  collections.Hashable):
+					inner = {inner[0]: inner[1]}
 			if token.children[-1].__class__.__name__ == 'List' and len(inner) > 1:
-				inner = {inner[1]: inner[0]}
+				if isinstance(inner[0],  collections.Hashable):
+					inner = {inner[1]: inner[0]}
 		return inner
 		# return '<li>{}</li>'.format(inner_template.format(inner))
 
