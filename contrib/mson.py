@@ -11,7 +11,7 @@ import copy
 import collections
 from itertools import chain
 from urllib.parse import quote
-from mistletoe.block_token import HTMLBlock
+from mistletoe.block_token import HTMLBlock, Table
 from mistletoe.span_token import HTMLSpan
 from mistletoe.base_renderer import BaseRenderer
 if sys.version_info < (3, 4):
@@ -405,7 +405,7 @@ class MSONRenderer(BaseRenderer):
 						token: a branch node who has children attribute.
 		"""
 		rendered = list(map(self.render, token.children))
-		if len(rendered) == 1:
+		if not isinstance(token, Table) and len(rendered) == 1:
 			return rendered[0]
 		else:
 			return rendered
