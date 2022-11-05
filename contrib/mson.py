@@ -300,16 +300,16 @@ class MSONRenderer(BaseRenderer):
 			return inner[0]
 		if self._suppress_ptag_stack[-1] or True:
 			if token.children[0].__class__.__name__ == 'Paragraph' and len(inner) > 1:
-				if isinstance(inner[0],  collections.Hashable):
+				if isinstance(inner[0],  collections.abc.Hashable):
 					inner = {inner[0]: inner[1]}
 			if token.children[-1].__class__.__name__ == 'Paragraph' and len(inner) > 1:
-				if isinstance(inner[0],  collections.Hashable):
+				if isinstance(inner[0],  collections.abc.Hashable):
 					inner = {inner[1]: inner[0]}
 			if token.children[0].__class__.__name__ == 'List' and len(inner) > 1:
-				if isinstance(inner[0],  collections.Hashable):
+				if isinstance(inner[0],  collections.abc.Hashable):
 					inner = {inner[0]: inner[1]}
 			if token.children[-1].__class__.__name__ == 'List' and len(inner) > 1:
-				if isinstance(inner[0],  collections.Hashable):
+				if isinstance(inner[0],  collections.abc.Hashable):
 					inner = {inner[1]: inner[0]}
 		return inner
 		# return '<li>{}</li>'.format(inner_template.format(inner))
