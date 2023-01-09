@@ -447,10 +447,10 @@ class MSONRenderer(BaseRenderer):
 				if isinstance(target_value, str) and target_value[:1] == '#':
 					# the '#' surpresses the source copy operation
 					continue
-				source_is_dict = isinstance(source_value, collections.Mapping)
+				source_is_dict = isinstance(source_value, collections.abc.Mapping)
 				source_is_list = isinstance(source_value, list)
 				source_is_scalar = not (source_is_dict or source_is_list)
-				target_is_dict = isinstance(target_value, collections.Mapping)
+				target_is_dict = isinstance(target_value, collections.abc.Mapping)
 				target_is_list = isinstance(target_value, list)
 				target_is_scalar = not (target_is_dict or target_is_list)
 
